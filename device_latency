@@ -1,0 +1,36 @@
+import requests
+# disable certificate warnings
+requests.packages.urllib3.disable_warnings()
+username = 'admin'
+password = ‘password’
+base_url = 'https://xxx.xxx.xxx.xxx:443'
+def login_func():
+    login_response = requests.get(base_url + '/api/login', auth=(username, password), verify=False).json()
+    return login_response
+token = login_func()
+
+# high level objects
+instances = '/api/instances'
+#generate the list of and # of SDS's
+get_config = requests.get(base_url + instances, auth=(username, token), verify=False).json()
+sds_count = get_config['sdsList']
+sds_num = len(sds_count)
+sds_iter = 0
+#iterates through the SDSs
+while sds_iter < sds_num:
+    sds_list = sds_count[sds_iter]['links'][2]['href']
+    sds_name = sds_count[sds_iter]['name']
+    dev_count_per_sds = requests.get(base_url + sds_list, auth=(username, token), verify=False).json()
+    dev_per_sds = len(dev_count_per_sds)
+    print sds_name
+    dev_count_iter = 0
+    #iterates through the devices on each sds
+    while dev_count_iter < dev_per_sds:
+        dev_stat_link = dev_count_per_sds[dev_count_iter]['links'][1]['href']
+        device_name = dev_count_per_sds[dev_count_iter]['name']
+        dev_stat = requests.get(base_url + dev_stat_link, auth=(username, token), verify=False).json()
+        dev_wl_output = dev_stat['avgWriteLatencyInMicrosec']
+        dev_rl_output = dev_stat['avgReadLatencyInMicrosec']
+        print "Device Name: %s Read Latency: %s Write Latency: %s"  % (device_name, dev_wl_output, dev_rl_output)
+        dev_count_iter = dev_count_iter + 1
+    sds_iter = sds_iter + 1
