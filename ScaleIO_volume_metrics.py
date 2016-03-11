@@ -56,7 +56,6 @@ def login_func():
     else:
         return key
 token = login_func()
-print token
 
 #function to check if token is valid -
 
