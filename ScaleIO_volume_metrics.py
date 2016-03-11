@@ -1,7 +1,7 @@
 """
 Authored by Andrew J. White - andrew.white@emc.com
 Simple script to pull stats from a volume
-Use code at own risk - no warranties. - does not use certificates
+Use code at own risk - no warranties. - does not use certifcates
 Instuctions -  when executing the script there are 3 required arguments (ip, user, passwd) and the user must specify either a vol_name or vol_id or all
 
 
@@ -56,7 +56,7 @@ def login_func():
     else:
         return key
 token = login_func()
-
+print token
 
 #function to check if token is valid -
 
@@ -98,8 +98,8 @@ for x in range(0, len(vol_count)):
 
 if args.all == True:
     #Create the pretty table
-    tab_out = PrettyTable(["Volume Name", "Volume ID", "Volume Used (GB)", "Snap Used (GB)", "Total Used (GB)", "Read IOPS", "Write IOPs", "Read BW (MB/s)", "Write BW (MB/s)"])
-    tab_out.align["IG Name"] = "l"
+    tab_out = PrettyTable(["Volume Name", "Volume ID", "Type", "Allocated (GB)", "Thin Used (GB)", "Snap Used (GB)", "Total Used (GB)", "Read IOPS", "Write IOPs", "Read BW (MB/s)", "Write BW (MB/s)"])
+    tab_out.align["Volume Name"] = "l"
     tab_out.padding_width = 1
     for key, value in vol_dict.items():
         volumeid = value
@@ -108,9 +108,18 @@ if args.all == True:
         #pulls the vtree id from using the id
         vol_request = requests.get(base_url + vol_url + volumeid, auth=(username, token), verify=False).json()
         vtree_id = vol_request['vtreeId']
-
-        #sets varible as the json output from vtree rest call.
         vtree_stats = requests.get(base_url + "/api/instances/VTree::" + vtree_id + "/relationships/Statistics", auth=(username, token), verify=False).json()
+        base_cap = round(float(vtree_stats['baseNetCapacityInUseInKb']) / 1024 / 1024, 1)
+        snap_cap = round(float(vtree_stats['snapNetCapacityInUseInKb']) / 1024 / 1024, 1)
+        net_cap = round(float(vtree_stats['netCapacityInUseInKb']) / 1024 / 1024, 1)
+        vol_type = vol_name["volumeType"]
+        if vol_name["volumeType"] == "ThickProvisioned":
+            vol_type = "Thick"
+            base_cap = "N/A"
+        elif vol_name["volumeType"] == "ThinProvisioned":
+            vol_type = "Thin"
+        #sets varible as the json output from vtree rest call.
+
         if vol_name["volumeType"] == "Snapshot":
             pass
         else:
@@ -125,13 +134,13 @@ if args.all == True:
             read_iops = vol_stats['Volume'][volumeid]['userDataReadBwc']['numOccured']
 
         #adds each volume to prettytable
-            tab_out.add_row([vol_name['name'],volumeid,round(float(vtree_stats['baseNetCapacityInUseInKb']) / 1024 / 1024, 1),round(float(vtree_stats['snapNetCapacityInUseInKb']) / 1024 / 1024, 1), round(float(vtree_stats['netCapacityInUseInKb']) / 1024 / 1024, 1),iops_calc(read_iops,read_num_sec), iops_calc(write_iops,read_num_sec),round(float(iops_calc(read_bw_weight,read_num_sec)) / 1024, 2),round(float(iops_calc(write_bw_weight,read_num_sec)) / 1024, 2)])
+            tab_out.add_row([vol_name['name'],volumeid,vol_type ,float(vol_name['sizeInKb']) / 1024 /1024, base_cap,snap_cap ,net_cap, iops_calc(read_iops,read_num_sec), iops_calc(write_iops,read_num_sec),round(float(iops_calc(read_bw_weight,read_num_sec)) / 1024, 2),round(float(iops_calc(write_bw_weight,read_num_sec)) / 1024, 2)])
     #prints pretty table once all of the volumes have been added - sorted by volume name
     print tab_out.get_string(sortby="Volume Name")
 else:
     #create a pretty table
-    tab_out = PrettyTable(["Volume Name", "Volume ID", "Volume Used (GB)", "Snap Used (GB)", "Total Used (GB)", "Read IOPS", "Write IOPs", "Read BW (MB/s)", "Write BW (MB/s)"])
-    tab_out.align["IG Name"] = "l"
+    tab_out = PrettyTable(["Volume Name", "Volume ID", "Type", "Allocated (GB)", "Thin Used (GB)", "Snap Used (GB)", "Total Used (GB)", "Read IOPS", "Write IOPs", "Read BW (MB/s)", "Write BW (MB/s)"])
+    tab_out.align["Volume Name"] = "l"
     tab_out.padding_width = 1
     #if user does not specify a vol id, uses the vol name to pull from dictionary and sets the volumeid variable
     if volumeid == "None":
@@ -141,6 +150,16 @@ else:
         #pulls the vtree id from using the id
         vol_request = requests.get(base_url + vol_url + volumeid, auth=(username, token), verify=False).json()
         vtree_id = vol_request['vtreeId']
+        vtree_stats = requests.get(base_url + "/api/instances/VTree::" + vtree_id + "/relationships/Statistics", auth=(username, token), verify=False).json()
+        base_cap = round(float(vtree_stats['baseNetCapacityInUseInKb']) / 1024 / 1024, 1)
+        snap_cap = round(float(vtree_stats['snapNetCapacityInUseInKb']) / 1024 / 1024, 1)
+        net_cap = round(float(vtree_stats['netCapacityInUseInKb']) / 1024 / 1024, 1)
+        vol_type = vol_name["volumeType"]
+        if vol_name["volumeType"] == "ThickProvisioned":
+            vol_type = "Thick"
+            base_cap = "N/A"
+        elif vol_name["volumeType"] == "ThinProvisioned":
+            vol_type = "Thin"
 
         #sets varible as the json output from vtree rest call.
         vtree_stats = requests.get(base_url + "/api/instances/VTree::" + vtree_id + "/relationships/Statistics", auth=(username, token), verify=False).json()
@@ -159,6 +178,6 @@ else:
             read_iops = vol_stats['Volume'][volumeid]['userDataReadBwc']['numOccured']
 
             #adds each volume to prettytable
-            tab_out.add_row([vol_name['name'],volumeid,round(float(vtree_stats['baseNetCapacityInUseInKb']) / 1024 / 1024, 1),round(float(vtree_stats['snapNetCapacityInUseInKb']) / 1024 / 1024, 1), round(float(vtree_stats['netCapacityInUseInKb']) / 1024 / 1024, 1),   iops_calc(read_iops,read_num_sec), iops_calc(write_iops,read_num_sec),round(float(iops_calc(read_bw_weight,read_num_sec)) / 1024, 2),round(float(iops_calc(write_bw_weight,read_num_sec)) / 1024, 2)])
+            tab_out.add_row([vol_name['name'],volumeid,vol_type ,float(vol_name['sizeInKb']) / 1024 /1024, base_cap,snap_cap ,net_cap, iops_calc(read_iops,read_num_sec), iops_calc(write_iops,read_num_sec),round(float(iops_calc(read_bw_weight,read_num_sec)) / 1024, 2),round(float(iops_calc(write_bw_weight,read_num_sec)) / 1024, 2)])
             #prints pretty table once all of the volumes have been added - sorted by volume name
             print tab_out.get_string(sortby="Volume Name")
